@@ -7,10 +7,13 @@ import androidx.core.app.ActivityCompat;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.Settings;
 import android.widget.Button;
 import android.widget.Toast;
 
@@ -32,19 +35,84 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Button btnDownloadFromUrl = findViewById(R.id.btnDownloadFromUrl);
+        new DownloadFile().execute(fileUrl, filename);
+
         Button btnDownloadFromInternal = findViewById(R.id.btnDownloadFromInternal);
-        btnDownloadFromInternal.setEnabled(false);
-        btnDownloadFromUrl.setOnClickListener(view -> {
-            new DownloadFile().execute(fileUrl, filename);
-            btnDownloadFromInternal.setEnabled(true);
-        });
         btnDownloadFromInternal.setOnClickListener(view -> {
+            //permission
             if(ActivityCompat.checkSelfPermission( MainActivity.this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)==-1)
                 ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, WRITE_EXTERNAL_STORAGE);
-            new SaveFromInternalToExternal().execute();
+            else
+                Toast.makeText(MainActivity.this, "Downloading from" + sourcePath, Toast.LENGTH_SHORT).show();
+            //internal to external storage
+            new SaveFromInternalToExternal().execute(sourcePath, filename);
+
         });
     }
+
+    //permission check
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == WRITE_EXTERNAL_STORAGE) {
+            if (grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(MainActivity.this, "Storage Permission Granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(MainActivity.this, "Storage Permission Denied", Toast.LENGTH_SHORT).show();
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                AlertDialog alert = builder
+                        .setTitle("ACCESS DENIED")
+                        .setMessage("To download file, \nYou must give permission")
+                        .setPositiveButton("OK", (dialog, which) -> {
+                                    boolean showRationale = shouldShowRequestPermissionRationale(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                                    if (!showRationale) {
+                                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                                        Uri uri = Uri.fromParts("package", getPackageName(), null);
+                                        intent.setData(uri);
+                                        startActivity(intent);
+                                    }
+                                }
+                        ).create();
+                alert.show();
+
+
+            }
+        }
+    }
+
+    //internal to external Download folder
+    // need param sourcePath, filename
+
+    private class SaveFromInternalToExternal extends AsyncTask<String, Void, Void>{
+        @Override
+        protected Void doInBackground(String... strings) {
+            String src = strings[0];
+            String fileName = strings[1];
+            File source = new File(src);
+            File destination= new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
+            destinationPath = destination.getAbsolutePath();
+            System.out.println("destinationPath: "+destinationPath);
+            try {
+                try (InputStream in = new FileInputStream(source); OutputStream out = new FileOutputStream(destination)) {
+                    // Transfer bytes from in to out
+                    byte[] buf = new byte[1024];
+                    int len;
+                    while ((len = in.read(buf)) > 0) {
+                        out.write(buf, 0, len);
+                    }
+                }
+            }catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        }
+    }
+
+
+
+
 
     public static void DownloadFromUrl(String fileUrl, File directory){
         final int  MEGABYTE = 1024 * 1024;
@@ -64,51 +132,6 @@ public class MainActivity extends AppCompatActivity {
             System.out.println("File downloaded");
         } catch (IOException e) {
             e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
-    {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == WRITE_EXTERNAL_STORAGE) {
-            if (grantResults.length > 0
-                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(MainActivity.this, "Storage Permission Granted", Toast.LENGTH_SHORT).show();
-            }
-            else {
-                Toast.makeText(MainActivity.this, "Storage Permission Denied", Toast.LENGTH_SHORT).show();
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                AlertDialog alert = builder
-                        .setTitle("ACCESS DENIED")
-                        .setMessage("To download file, \nYou must give permission")
-                        .setPositiveButton("OK", (dialog, which) -> {}).create();
-                alert.show();
-            }
-        }
-    }
-
-    private class SaveFromInternalToExternal extends AsyncTask<String, Void, Void>{
-        @Override
-        protected Void doInBackground(String... strings) {
-            File source = new File(sourcePath);
-            File destination= new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), filename);
-            destinationPath = destination.getAbsolutePath();
-            System.out.println("destinationPath: "+destinationPath);
-            try {
-                try (InputStream in = new FileInputStream(source); OutputStream out = new FileOutputStream(destination)) {
-                    // Transfer bytes from in to out
-                    byte[] buf = new byte[1024];
-                    int len;
-                    while ((len = in.read(buf)) > 0) {
-                        out.write(buf, 0, len);
-                    }
-                }
-            }catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            return null;
         }
     }
 
