@@ -25,7 +25,7 @@ import java.net.URL;
 
 public class MainActivity extends AppCompatActivity {
     private String filename = "unknown.pdf";
-    private String fileUrl = "https://www.radioicare.org/upload/healthinfo/58/pdf/5e68a50411858.pdf";
+    private String fileUrl = "https://www.chp.gov.hk/files/pdf/building_list_chi.pdf";
     private String sourcePath, destinationPath;
     private final int WRITE_EXTERNAL_STORAGE = 3;
     @Override
